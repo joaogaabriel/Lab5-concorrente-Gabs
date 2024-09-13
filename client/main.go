@@ -21,19 +21,19 @@ func main() {
 	c := pb.NewGreeterClient(conn)
 
 	// Pega o nome do usuário ou usa "world" como padrão
-	name := "ping"
+	hash := "6bb151ddb2b8d27fbf8d7bbd5e975119ea527fd9"
 	if len(os.Args) > 1 {
-		name = os.Args[1]
+		hash = os.Args[1]
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
 	// Envia a requisição SayHello ao servidor
-	r, err := c.SayHello(ctx, &pb.HelloRequest{Name: name})
+	r, err := c.CheckExistsFile(ctx, &pb.FileExistsRequest{Sha1Hash: hash})
 	if err != nil {
 		log.Fatalf("could not greet: %v", err)
 	}
 
-	log.Printf("Greeting: %s", r.GetMessage())
+	log.Printf("Greeting: %s", r.Exists)
 }

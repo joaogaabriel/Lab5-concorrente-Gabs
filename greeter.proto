@@ -8,6 +8,15 @@ option go_package = "./greeter";
 service Greeter {
   // Método SayHello que aceita um nome e retorna uma saudação
   rpc SayHello (HelloRequest) returns (HelloReply);
+  rpc CheckExistsFile(FileExistsRequest) returns (FileExistsResponse);
+}
+
+message FileExistsRequest {
+  string sha1_hash = 1;
+}
+
+message FileExistsResponse {
+  bool exists = 1;
 }
 
 // Mensagem de requisição

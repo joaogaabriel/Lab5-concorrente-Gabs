@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/goPirateBay/file"
 	"log"
 	"net"
 
@@ -19,6 +20,33 @@ type server struct {
 func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
 	log.Printf("Received: %s", in.GetName())
 	return &pb.HelloReply{Message: "Pong"}, nil
+}
+
+func (s *server) CheckExistsFile(ctx context.Context, in *pb.FileExistsRequest) (*pb.FileExistsResponse, error) {
+	log.Printf("Check is file %s exits", in.Sha1Hash)
+
+	resultChan := make(chan *file.FileInfo)
+
+	go FindFileByHashAsync(in.Sha1Hash, resultChan)
+
+	result := <-resultChan
+	if result == nil {
+		return &pb.FileExistsResponse{Exists: false}, nil
+	}
+
+	return &pb.FileExistsResponse{Exists: true}, nil
+}
+
+func FindFileByHashAsync(hash string, resultChan chan<- *file.FileInfo) {
+
+	directory := "/tmp/goPirateBay"
+
+	fileIndex, err := file.ListFilesInDirectory(directory)
+	if err != nil {
+		log.Fatalf("Error listing files: %v", err)
+	}
+
+	resultChan <- file.FindFileByHash(fileIndex.Files, hash)
 }
 
 func main() {

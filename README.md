@@ -52,7 +52,7 @@ goPirateBay/
 
 # Requisitos Funcionais do Projeto
 
-- [] **Descoberta de Peers ou Servidores (Local Peer Discovery)**
+- [ ] **Descoberta de Peers ou Servidores (Local Peer Discovery)**
   - O sistema deve ser capaz de descobrir automaticamente os peers ou servidores disponíveis na rede local.
   - Deve utilizar o Local Peer Discovery via multicast ou broadcast para encontrar outros peers.
 
@@ -66,35 +66,11 @@ goPirateBay/
 - [ ] **Gerenciamento de Peers**
   - O sistema deve gerenciar a adição de novos peers e a remoção de peers que se desconectaram da rede.
 
-- [ ] **Suporte a Reconexão**
-  - O sistema deve tentar reconectar automaticamente ou redirecionar solicitações para outro peer em caso de falha de conexão.
-
 - [ ] **Balanceamento de Carga entre Peers**
   - O sistema deve distribuir as solicitações de arquivos entre múltiplos peers para evitar sobrecarga de um único peer.
 
 - [ ] **Log de Operações**
   - O sistema deve registrar operações importantes como descoberta de peers, conexões, transferências de arquivos e falhas.
 
-- [ ] **Segurança Básica**
-  - O sistema deve ter alguma verificação ou autenticação entre peers e validar a integridade dos arquivos transferidos.
-
-- [ ] **Monitoramento e Notificação de Erros**
-  - O sistema deve ser capaz de monitorar erros de conexão e falhas nas transferências de arquivos e tentar novamente ou redirecionar.
-
-- [ ] **Escalabilidade**
-  - O sistema deve escalar para lidar com um grande número de peers e arquivos sem degradação significativa de desempenho.
-
 - [ ] **Persistência Temporária de Arquivos**
   - Os arquivos devem ser armazenados temporariamente no diretório `/tmp/dataset` e o sistema deve refletir alterações de disponibilidade de arquivos.
-
-- [ ] **Compatibilidade com Diferentes Ambientes de Rede**
-  - O sistema deve funcionar tanto em redes locais quanto em redes distribuídas maiores (com ou sem multicast).
-
-- [ ] **Facilidade de Execução e Automação**
-  - O sistema deve ser fácil de executar, com scripts de inicialização para o cliente e o servidor.
-
-- [ ] **Mecanismo de Consulta de Arquivos Disponíveis**
-  - O cliente deve ser capaz de consultar um peer ou servidor para obter uma lista de arquivos disponíveis para download no diretório `/tmp/dataset`.
-
-- [ ] **Interface de Configuração Básica**
-  - O sistema deve permitir configurar parâmetros como porta de comunicação, caminho do diretório de arquivos e timeout de conexão.
