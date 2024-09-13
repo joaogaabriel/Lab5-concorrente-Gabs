@@ -1,0 +1,57 @@
+# Diretórios e arquivos gerados pelo Go
+/bin/
+/pkg/
+/out/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Módulos e dependências gerados automaticamente
+go.sum
+vendor/
+
+# Arquivos e diretórios temporários
+*.tmp
+*.log
+*.swp
+*.lock
+*.out
+*.test
+*.prof
+
+# Arquivos de cache
+*.cache
+*.o
+*.a
+
+# Diretório de cache do Go
+$GOPATH/pkg/mod/
+$GOPATH/bin/
+
+# Configurações do IDE (caso use uma IDE específica, como VSCode ou GoLand)
+.idea/
+.vscode/
+*.iml
+
+# Sistemas operacionais (macOS, Linux, Windows)
+.DS_Store           # macOS
+Thumbs.db           # Windows
+*.bak               # Arquivos de backup
+*.tmp               # Arquivos temporários
+*.swp               # Arquivos de swap do Vim
+
+# Arquivos de build (caso você use um diretório para builds locais)
+build/
+dist/
+out/
+
+# Dados de testes gerados (se aplicável)
+*.coverprofile
+*.cov
+test-results/
+
+# Excluir qualquer coisa no /tmp que não seja relevante
+/tmp/*
+!*/dataset/         # Exclui o tmp, mas mantém o diretório /tmp/dataset que você está usando
+

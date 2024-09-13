@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package greeter;
+
+option go_package = "./greeter";
+
+// Definição do serviço
+service Greeter {
+  // Método SayHello que aceita um nome e retorna uma saudação
+  rpc SayHello (HelloRequest) returns (HelloReply);
+}
+
+// Mensagem de requisição
+message HelloRequest {
+  string name = 1;
+}
+
+// Mensagem de resposta
+message HelloReply {
+  string message = 1;
+}
