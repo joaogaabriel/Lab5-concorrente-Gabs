@@ -48,7 +48,7 @@ func createFilesTest(dirPath string) {
 			log.Fatalf("Failed to create file: %v", err)
 		}
 
-		_, err = file.WriteString("This is some test content for " + fileName)
+		_, err = file.WriteString("This is some netUtils content for " + fileName)
 		if err != nil {
 			log.Fatalf("Failed to write to file: %v", err)
 		}

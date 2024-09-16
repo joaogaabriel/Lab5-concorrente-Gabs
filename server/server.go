@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"github.com/goPirateBay/constants"
 	"github.com/goPirateBay/file"
+	"github.com/goPirateBay/netUtils"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	"google.golang.org/grpc"
 	"io"
 	"log"
 	"net"
 	"os"
 	"path/filepath"
+	"time"
 
 	pb "github.com/goPirateBay/greeter"
 )
@@ -87,45 +91,59 @@ func FindFileByHashAsync(hash string, resultChan chan<- *file.FileInfo) {
 }
 
 func StartServer() {
-	/*addr := net.UDPAddr{
-		Port: constants.BroadcastPort,
-		IP:   net.IPv4zero, // Escuta em todas as interfaces (0.0.0.0)
-	}*/
+	lis, err := net.Listen("tcp", constants.Localhost)
+	if err != nil {
+		log.Fatalf("Failed to listen: %v", err)
+	}
 
-	addr, err := net.ResolveUDPAddr("udp4", "0.0.0.0:8000")
+	grpcServer := grpc.NewServer()
+
+	registerService()
+
+	pb.RegisterGreeterServer(grpcServer, &server{})
+	pb.RegisterFileServiceServer(grpcServer, &FileServiceServer{})
+
+	fmt.Println("Server is running on port " + constants.BroadcastPort)
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Fatalf("Failed to serve: %v", err)
+	}
+}
+
+func registerService() {
+	cli, err := clientv3.New(clientv3.Config{
+		Endpoints:   []string{constants.IP_ETCD},
+		DialTimeout: 5 * time.Second,
+	})
+	if err != nil {
+		log.Fatalf("Failed to serve Etcd: %v", err)
+	}
+	defer cli.Close()
+
+	leaseResp, err := cli.Grant(context.Background(), 60) // Tempo de expiração do lease
+	if err != nil {
+		log.Fatalf("Failed to create lease: %v", err)
+	}
+
+	localIp, err := netUtils.GetLocalIP()
+
 	if err != nil {
 		fmt.Println(err)
-		return
 	}
-	conn, err := net.ListenUDP("udp4", addr)
+
+	_, err = cli.Put(context.Background(), "services/"+localIp, localIp, clientv3.WithLease(leaseResp.ID))
 	if err != nil {
-		log.Fatalf("Erro ao escutar na porta UDP: %v", err)
+		log.Fatalf("Failed to register service: %v", err)
 	}
-	defer conn.Close()
 
-	fmt.Printf("Servidor escutando na porta %d para discovery...\n", constants.BroadcastPort)
+	log.Println("Registered service with lease successfully!")
 
-	buffer := make([]byte, 1024)
+	ch, err := cli.KeepAlive(context.Background(), leaseResp.ID)
+	if err != nil {
+		log.Fatalf("Failed to keep lease alive: %v", err)
+	}
+
 	for {
-		// Recebe mensagens de discovery
-		n, remoteAddr, err := conn.ReadFromUDP(buffer)
-		if err != nil {
-			log.Printf("Erro ao ler da conexão UDP: %v", err)
-			continue
-		}
-
-		message := string(buffer[:n])
-		fmt.Printf("Mensagem recebida: %s de %s\n", message, remoteAddr)
-
-		// Se for uma mensagem de discovery, responde com o IP do servidor
-		if message == "DISCOVER" {
-			response := fmt.Sprintf("SERVIDOR:%s", remoteAddr.IP.String())
-			_, err = conn.WriteToUDP([]byte(response), remoteAddr)
-			if err != nil {
-				log.Printf("Erro ao enviar resposta para %s: %v", remoteAddr, err)
-			} else {
-				fmt.Printf("Resposta enviada para %s\n", remoteAddr)
-			}
-		}
+		<-ch
+		log.Println("Lease renewed")
 	}
 }
