@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/goPirateBay/constants"
 	"github.com/goPirateBay/file"
 	"io"
 	"log"
@@ -11,8 +12,6 @@ import (
 	"path/filepath"
 
 	pb "github.com/goPirateBay/greeter"
-
-	"google.golang.org/grpc"
 )
 
 type server struct {
@@ -20,30 +19,31 @@ type server struct {
 }
 
 type FileServiceServer struct {
-	pb.UnimplementedFileServiceServer // Necessário para gRPC
+	pb.UnimplementedFileServiceServer
 }
 
+const bitsTax = 1024
+
 func (s *FileServiceServer) Download(req *pb.FileDownloadRequest, stream pb.FileService_DownloadServer) error {
-	filePath := filepath.Join("/tmp/goPirateBay", req.GetFileName())
+	filePath := filepath.Join(constants.InitDirFiles, req.GetFileName())
 	file, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("erro ao abrir o arquivo: %v", err)
 	}
 	defer file.Close()
 
-	buffer := make([]byte, 1024) // Pedaços de 1KB
+	buffer := make([]byte, bitsTax)
 	for {
 		n, err := file.Read(buffer)
 		if err == io.EOF {
-			break // Fim do arquivo
+			break
 		}
 		if err != nil {
 			return fmt.Errorf("erro ao ler o arquivo: %v", err)
 		}
 
-		// Envia o pedaço atual ao cliente
 		err = stream.Send(&pb.FileDownloadResponse{
-			Chunk: buffer[:n], // Envia o pedaço lido
+			Chunk: buffer[:n],
 		})
 		if err != nil {
 			return fmt.Errorf("erro ao enviar o pedaço: %v", err)
@@ -72,7 +72,8 @@ func (s *server) CheckExistsFile(ctx context.Context, in *pb.FileExistsRequest) 
 }
 
 func FindFileByHashAsync(hash string, resultChan chan<- *file.FileInfo) {
-	directory := "/tmp/goPirateBay"
+
+	directory := constants.InitDirFiles
 
 	fileIndex, err := file.ListFilesInDirectory(directory)
 	if err != nil {
@@ -86,18 +87,45 @@ func FindFileByHashAsync(hash string, resultChan chan<- *file.FileInfo) {
 }
 
 func StartServer() {
-	lis, err := net.Listen("tcp", ":50051")
+	/*addr := net.UDPAddr{
+		Port: constants.BroadcastPort,
+		IP:   net.IPv4zero, // Escuta em todas as interfaces (0.0.0.0)
+	}*/
+
+	addr, err := net.ResolveUDPAddr("udp4", "0.0.0.0:8000")
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		fmt.Println(err)
+		return
 	}
+	conn, err := net.ListenUDP("udp4", addr)
+	if err != nil {
+		log.Fatalf("Erro ao escutar na porta UDP: %v", err)
+	}
+	defer conn.Close()
 
-	s := grpc.NewServer()
+	fmt.Printf("Servidor escutando na porta %d para discovery...\n", constants.BroadcastPort)
 
-	pb.RegisterGreeterServer(s, &server{})
-	pb.RegisterFileServiceServer(s, &FileServiceServer{})
+	buffer := make([]byte, 1024)
+	for {
+		// Recebe mensagens de discovery
+		n, remoteAddr, err := conn.ReadFromUDP(buffer)
+		if err != nil {
+			log.Printf("Erro ao ler da conexão UDP: %v", err)
+			continue
+		}
 
-	log.Println("Server is running on port 50051...")
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+		message := string(buffer[:n])
+		fmt.Printf("Mensagem recebida: %s de %s\n", message, remoteAddr)
+
+		// Se for uma mensagem de discovery, responde com o IP do servidor
+		if message == "DISCOVER" {
+			response := fmt.Sprintf("SERVIDOR:%s", remoteAddr.IP.String())
+			_, err = conn.WriteToUDP([]byte(response), remoteAddr)
+			if err != nil {
+				log.Printf("Erro ao enviar resposta para %s: %v", remoteAddr, err)
+			} else {
+				fmt.Printf("Resposta enviada para %s\n", remoteAddr)
+			}
+		}
 	}
 }

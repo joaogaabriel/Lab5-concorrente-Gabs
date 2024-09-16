@@ -3,33 +3,29 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/goPirateBay/constants"
 	pb "github.com/goPirateBay/greeter"
-	"google.golang.org/grpc"
 	"io"
 	"log"
+	"net"
 	"os"
-)
-
-const (
-	serverAddr = "localhost:50051" // Endereço do servidor gRPC
+	"time"
 )
 
 func downloadFile(client pb.FileServiceClient, fileName string) error {
-	// Solicita o arquivo ao servidor
+
 	req := &pb.FileDownloadRequest{FileName: fileName}
 	stream, err := client.Download(context.Background(), req)
 	if err != nil {
 		return fmt.Errorf("erro ao iniciar o download: %v", err)
 	}
 
-	// Cria o arquivo local para gravar os dados
-	outFile, err := os.Create(fileName)
+	outFile, err := os.Create(constants.DownloadDir + fileName)
 	if err != nil {
 		return fmt.Errorf("erro ao criar o arquivo: %v", err)
 	}
 	defer outFile.Close()
 
-	// Recebe os pedaços do arquivo e grava no disco
 	for {
 		res, err := stream.Recv()
 		if err == io.EOF {
@@ -50,20 +46,59 @@ func downloadFile(client pb.FileServiceClient, fileName string) error {
 	return nil
 }
 
-func main() {
-	// Conecta ao servidor gRPC
-	conn, err := grpc.Dial(serverAddr, grpc.WithInsecure())
+const (
+	broadcastAddr = "0.0.0.0:8000"       // Endereço de broadcast
+	bufferSize    = constants.BufferSize // Tamanho do buffer
+	timeout       = 20 * time.Second     // Timeout para respostas
+)
+
+func discoverServers() []string {
+	var servers []string
+
+	// Resolve o endereço de broadcast
+	addr, err := net.ResolveUDPAddr("udp4", broadcastAddr)
 	if err != nil {
-		log.Fatalf("Falha ao conectar ao servidor gRPC: %v", err)
+		log.Fatalf("Erro ao resolver o endereço de broadcast: %v", err)
+	}
+
+	// Cria a conexão UDP para enviar a mensagem de discovery
+	conn, err := net.DialUDP("udp", nil, addr)
+	if err != nil {
+		log.Fatalf("Erro ao conectar UDP: %v", err)
 	}
 	defer conn.Close()
 
-	client := pb.NewFileServiceClient(conn)
-
-	// Solicita o download de um arquivo
-	fileName := "file1.txt" // Altere para o nome do arquivo que você deseja baixar
-	err = downloadFile(client, fileName)
+	// Envia a mensagem de discovery
+	_, err = conn.Write([]byte("DISCOVER"))
 	if err != nil {
-		log.Fatalf("Erro ao baixar o arquivo: %v", err)
+		log.Fatalf("Erro ao enviar a mensagem de discovery: %v", err)
+	}
+	fmt.Println("Mensagem de discovery enviada.")
+
+	// Escuta as respostas dos servidores
+	conn.SetReadDeadline(time.Now().Add(timeout))
+	buffer := make([]byte, bufferSize)
+	for {
+		n, remoteAddr, err := conn.ReadFromUDP(buffer)
+		if err != nil {
+			break // Timeout
+		}
+		response := string(buffer[:n])
+		fmt.Printf("Resposta recebida de %s: %s\n", remoteAddr, response)
+		servers = append(servers, remoteAddr.String())
+	}
+
+	return servers
+}
+
+func main() {
+	servers := discoverServers()
+	if len(servers) == 0 {
+		fmt.Println("Nenhum servidor encontrado.")
+	} else {
+		fmt.Println("Servidores encontrados:")
+		for _, server := range servers {
+			fmt.Println(server)
+		}
 	}
 }

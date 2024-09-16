@@ -95,7 +95,7 @@ func ListFilesInDirectory(directory string) (FileIndex, error) {
 
 		if !info.IsDir() {
 
-			sha1Hash, err := calculateSHA1(path) // Calcula o SHA-1 do arquivo
+			sha1Hash, err := calculateSHA1(path)
 			if err != nil {
 				return err
 			}

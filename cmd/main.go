@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/goPirateBay/constants"
 	"github.com/goPirateBay/file"
 	"github.com/goPirateBay/server"
 	"log"
@@ -11,7 +12,7 @@ import (
 
 func main() {
 
-	directory := "/tmp/goPirateBay"
+	directory := constants.InitDirFiles
 	if _, err := os.Stat(directory); os.IsNotExist(err) {
 		createFilesTest(directory)
 	}
