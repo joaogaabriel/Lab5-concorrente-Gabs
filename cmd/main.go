@@ -20,14 +20,20 @@ func main() {
 
 	cacheFiles := fileUtils.NewFileCache(time.Minute)
 
+	if cacheFiles == nil {
+		log.Fatal("fileCache is not initialized")
+	}
+
 	cacheFiles.StartPeriodicCacheUpdate(constants.InitDirFiles, 2*time.Minute)
 
-	go server.StartServer(cacheFiles)
-
+	//go server.StartServer(cacheFiles)
+	go server.StartServerr(cacheFiles)
+	cacheFiles.GetAllFiles()
 	time.Sleep(time.Second / 2)
 	for _, file := range cacheFiles.GetAllFiles() {
 		fmt.Printf("File: %s, Size: %d bytes HASH: %s\n", file.Name, file.Size, file.SHA1Hash)
 	}
+
 	select {}
 }
 

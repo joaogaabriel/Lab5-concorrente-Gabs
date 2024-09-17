@@ -36,8 +36,8 @@ type FileCache struct {
 
 func NewFileCache(ttl time.Duration) *FileCache {
 	return &FileCache{
-		cache:      make(map[string]FileInfo),  // Mapa para armazenar os arquivos
-		expiration: make(map[string]time.Time), // Mapa para armazenar os tempos de expiração
+		cache:      make(map[string]FileInfo),
+		expiration: make(map[string]time.Time),
 		ttl:        ttl,
 	}
 }
@@ -106,7 +106,6 @@ func (fc *FileCache) LoadFiles(dir string) error {
 func (fc *FileCache) GetFile(sha1_hash string) (FileInfo, bool) {
 	fc.mu.RLock()
 	defer fc.mu.RUnlock()
-
 	file, found := fc.cache[sha1_hash]
 	if !found {
 		return FileInfo{}, false

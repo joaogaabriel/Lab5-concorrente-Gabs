@@ -19,17 +19,17 @@ import (
 
 type server struct {
 	pb.UnimplementedGreeterServer
+	filesCache *fileUtils.FileCache
 }
 
 type FileServiceServer struct {
 	pb.UnimplementedFileServiceServer
+	filesCache *fileUtils.FileCache
 }
-
-var filesCache *fileUtils.FileCache
 
 func (s *FileServiceServer) Download(req *pb.FileDownloadRequest, stream pb.FileService_DownloadServer) error {
 
-	fileFind, exists := filesCache.GetFile(req.GetSha1Hash())
+	fileFind, exists := s.filesCache.GetFile(req.GetSha1Hash())
 
 	if !exists {
 		return fmt.Errorf("File not found")
@@ -66,7 +66,7 @@ func (s *server) CheckExistsFile(ctx context.Context, in *pb.FileExistsRequest) 
 
 	log.Printf("Checking if fileUtils with SHA-1 hash %s exists", in.Sha1Hash)
 
-	_, exists := filesCache.GetFile(in.Sha1Hash)
+	_, exists := s.filesCache.GetFile(in.Sha1Hash)
 
 	if exists {
 		return &pb.FileExistsResponse{Exists: true}, nil
@@ -75,23 +75,23 @@ func (s *server) CheckExistsFile(ctx context.Context, in *pb.FileExistsRequest) 
 	return &pb.FileExistsResponse{Exists: false}, nil
 }
 
-func StartServer(filesCache *fileUtils.FileCache) {
-	filesCache = filesCache
-	lis, err := net.Listen("tcp", constants.Localhost)
+func StartServerr(filesCache *fileUtils.FileCache) {
+
+	go registerService()
+
+	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
+		log.Fatalf("failed to listen: %v", err)
 	}
 
-	grpcServer := grpc.NewServer()
+	s := grpc.NewServer()
 
-	registerService()
+	pb.RegisterGreeterServer(s, &server{filesCache: filesCache})
+	pb.RegisterFileServiceServer(s, &FileServiceServer{filesCache: filesCache})
 
-	pb.RegisterGreeterServer(grpcServer, &server{})
-	pb.RegisterFileServiceServer(grpcServer, &FileServiceServer{})
-
-	fmt.Println("Server is running on port " + constants.BroadcastPort)
-	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatalf("Failed to serve: %v", err)
+	log.Println("Server is running on port 50051...")
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
 	}
 }
 
@@ -116,7 +116,7 @@ func registerService() {
 		fmt.Println(err)
 	}
 
-	_, err = cli.Put(context.Background(), "services/"+localIp, localIp, clientv3.WithLease(leaseResp.ID))
+	_, err = cli.Put(context.Background(), constants.PrefixNameServerETCP+localIp, localIp+":"+constants.BroadcastPort, clientv3.WithLease(leaseResp.ID))
 	if err != nil {
 		log.Fatalf("Failed to register service: %v", err)
 	}
