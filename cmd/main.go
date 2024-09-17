@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/goPirateBay/constants"
-	"github.com/goPirateBay/fileUtils"
-	"github.com/goPirateBay/server"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/goPirateBay/constants"
+	"github.com/goPirateBay/fileUtils"
+	"github.com/goPirateBay/server"
 )
 
 func main() {
@@ -26,10 +27,12 @@ func main() {
 
 	cacheFiles.StartPeriodicCacheUpdate(constants.InitDirFiles, 2*time.Minute)
 
-	//go server.StartServer(cacheFiles)
 	go server.StartServerr(cacheFiles)
+
 	cacheFiles.GetAllFiles()
+
 	time.Sleep(time.Second / 2)
+
 	for _, file := range cacheFiles.GetAllFiles() {
 		fmt.Printf("File: %s, Size: %d bytes HASH: %s\n", file.Name, file.Size, file.SHA1Hash)
 	}

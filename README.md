@@ -14,6 +14,10 @@ protoc --go_out=. --go-grpc_out=. greeter.proto
 ```
 go get google.golang.org/grpc
 ```
+## Comando para executar o serviço do etcd
+```
+etcd --listen-client-urls=http://0.0.0.0:4001 --advertise-client-urls=http://<meu_ip>:4001
+```
 
 # Estrutura projeto previamente estipulada
 ```
