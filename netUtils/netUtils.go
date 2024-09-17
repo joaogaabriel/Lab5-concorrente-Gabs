@@ -32,5 +32,5 @@ func GetLocalIP() (string, error) {
 			}
 		}
 	}
-	return "", fmt.Errorf("não foi possível encontrar um IP válido")
+	return "", fmt.Errorf("no possable IP addresses found")
 }

@@ -113,7 +113,7 @@ func registerService() {
 	localIp, err := netUtils.GetLocalIP()
 
 	if err != nil {
-		fmt.Println(err)
+		log.Fatalf("Failed to register service: %v", err)
 	}
 
 	_, err = cli.Put(context.Background(), constants.PrefixNameServerETCP+localIp, localIp+":"+constants.BroadcastPort, clientv3.WithLease(leaseResp.ID))

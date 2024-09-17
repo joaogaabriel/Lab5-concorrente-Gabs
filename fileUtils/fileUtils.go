@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -46,10 +45,10 @@ func (fc *FileCache) StartPeriodicCacheUpdate(dir string, interval time.Duration
 	go func() {
 		for {
 
-			fmt.Println("Atualizando o cache...")
+			log.Printf("Update caching...")
 			err := fc.LoadFiles(dir)
 			if err != nil {
-				fmt.Println("Erro ao carregar os arquivos:", err)
+				log.Fatalf("Falied to update chache: %v", err)
 			}
 			time.Sleep(interval)
 		}
