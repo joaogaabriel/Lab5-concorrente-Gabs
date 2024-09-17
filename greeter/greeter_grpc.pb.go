@@ -13,7 +13,7 @@ import (
 	status "google.golang.org/grpc/status"
 )
 
-// This is a compile-time assertion to ensure that this generated file
+// This is a compile-time assertion to ensure that this generated fileUtils
 // is compatible with the grpc package it is being compiled against.
 // Requires gRPC-Go v1.64.0 or later.
 const _ = grpc.SupportPackageIsVersion9
@@ -82,7 +82,7 @@ type UnsafeGreeterServer interface {
 func RegisterGreeterServer(s grpc.ServiceRegistrar, srv GreeterServer) {
 	// If the following call pancis, it indicates UnimplementedGreeterServer was
 	// embedded by pointer and is nil.  This will cause panics if an
-	// unimplemented method is ever invoked, so we netUtils this at initialization
+	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()
@@ -193,7 +193,7 @@ type UnsafeFileServiceServer interface {
 func RegisterFileServiceServer(s grpc.ServiceRegistrar, srv FileServiceServer) {
 	// If the following call pancis, it indicates UnimplementedFileServiceServer was
 	// embedded by pointer and is nil.  This will cause panics if an
-	// unimplemented method is ever invoked, so we netUtils this at initialization
+	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()

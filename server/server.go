@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/goPirateBay/constants"
-	"github.com/goPirateBay/file"
+	"github.com/goPirateBay/fileUtils"
 	"github.com/goPirateBay/netUtils"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
@@ -12,7 +12,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"path/filepath"
 	"time"
 
 	pb "github.com/goPirateBay/greeter"
@@ -26,19 +25,25 @@ type FileServiceServer struct {
 	pb.UnimplementedFileServiceServer
 }
 
-const bitsTax = 1024
+var filesCache *fileUtils.FileCache
 
 func (s *FileServiceServer) Download(req *pb.FileDownloadRequest, stream pb.FileService_DownloadServer) error {
-	filePath := filepath.Join(constants.InitDirFiles, req.GetFileName())
-	file, err := os.Open(filePath)
+
+	fileFind, exists := filesCache.GetFile(req.GetSha1Hash())
+
+	if !exists {
+		return fmt.Errorf("File not found")
+	}
+
+	fileOpen, err := os.Open(fileFind.Path)
 	if err != nil {
 		return fmt.Errorf("erro ao abrir o arquivo: %v", err)
 	}
-	defer file.Close()
+	defer fileOpen.Close()
 
-	buffer := make([]byte, bitsTax)
+	buffer := make([]byte, constants.BufferSize)
 	for {
-		n, err := file.Read(buffer)
+		n, err := fileOpen.Read(buffer)
 		if err == io.EOF {
 			break
 		}
@@ -58,39 +63,20 @@ func (s *FileServiceServer) Download(req *pb.FileDownloadRequest, stream pb.File
 }
 
 func (s *server) CheckExistsFile(ctx context.Context, in *pb.FileExistsRequest) (*pb.FileExistsResponse, error) {
-	log.Printf("Checking if file with SHA-1 hash %s exists", in.Sha1Hash)
 
-	resultChan := make(chan *file.FileInfo)
+	log.Printf("Checking if fileUtils with SHA-1 hash %s exists", in.Sha1Hash)
 
-	go FindFileByHashAsync(in.Sha1Hash, resultChan)
+	_, exists := filesCache.GetFile(in.Sha1Hash)
 
-	result := <-resultChan
-
-	close(resultChan)
-
-	if result == nil {
-		return &pb.FileExistsResponse{Exists: false}, nil
+	if exists {
+		return &pb.FileExistsResponse{Exists: true}, nil
 	}
 
-	return &pb.FileExistsResponse{Exists: true}, nil
+	return &pb.FileExistsResponse{Exists: false}, nil
 }
 
-func FindFileByHashAsync(hash string, resultChan chan<- *file.FileInfo) {
-
-	directory := constants.InitDirFiles
-
-	fileIndex, err := file.ListFilesInDirectory(directory)
-	if err != nil {
-		log.Printf("Error listing files: %v", err)
-		resultChan <- nil
-		return
-	}
-
-	fileFound := file.FindFileByHash(fileIndex.Files, hash)
-	resultChan <- fileFound
-}
-
-func StartServer() {
+func StartServer(filesCache *fileUtils.FileCache) {
+	filesCache = filesCache
 	lis, err := net.Listen("tcp", constants.Localhost)
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
@@ -119,7 +105,7 @@ func registerService() {
 	}
 	defer cli.Close()
 
-	leaseResp, err := cli.Grant(context.Background(), 60) // Tempo de expiração do lease
+	leaseResp, err := cli.Grant(context.Background(), constants.TimeCheckServer) // Tempo de expiração do lease
 	if err != nil {
 		log.Fatalf("Failed to create lease: %v", err)
 	}

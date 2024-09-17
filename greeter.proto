@@ -22,7 +22,7 @@ message FileExistsResponse {
 }
 
 message FileDownloadRequest {
-  string file_name = 1;
+  string sha1_hash = 1;
 }
 
 message FileDownloadResponse {
