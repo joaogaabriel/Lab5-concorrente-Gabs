@@ -1,7 +1,7 @@
 package constants
 
 const (
-	IP_ETCD              = "localhost:2379"
+	IP_ETCD              = "http://10.0.0.112:2379"
 	TimeCheckServer      = 120
 	BroadcastPort        = "50051"
 	Localhost            = "localhost:50051"

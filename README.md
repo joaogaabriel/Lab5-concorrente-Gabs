@@ -1,8 +1,11 @@
 # Go Pirate Bay
 
-O projeto é um sistema de comunicação peer-to-peer (P2P) em Go que utiliza Local Peer Discovery para encontrar e conectar peers em uma rede local, facilitando a transferência de arquivos armazenados no diretório /tmp/dataset. O cliente pode se conectar a múltiplos peers simultaneamente para otimizar o desempenho do download. O sistema inclui suporte a reconexão automática, balanceamento de carga, log de operações e verificação de integridade dos arquivos, proporcionando uma solução escalável e eficiente para o compartilhamento de arquivos.
+Sistema de compartilhamento de arquivos P2P usando Go. Cada peer funciona como cliente e servidor, compartilhando arquivos em uma rede local e utilizando Etcd 
+para registrar seu IP, permitindo a descoberta de outros peers. O sistema utiliza sockets para comunicação e SHA1 para verificar a integridade dos arquivos.
 
 # Passos iniciais
+
+## Comando necessarios
 ```
 go mod init github.com/goPirateBay
 ```
@@ -15,62 +18,42 @@ protoc --go_out=. --go-grpc_out=. greeter.proto
 go get google.golang.org/grpc
 ```
 
-# Estrutura projeto previamente estipulada
+## Executar Servico ETCD
+
+```
+docker-compose up
+```
+
+# Comando para executar servico peer
+
+```
+go run cmd/main.go
+```
+
+# Estrutura projeto 
 ```
 goPirateBay/
 ├── client/
 │   ├── client.go                # Implementação do cliente
-│   ├── discovery.go             # Descoberta de servidores ou peers
-│   └── main.go                  # Ponto de entrada para execução do cliente
-│
 ├── server/
 │   ├── server.go                # Implementação do servidor
-│   ├── file_handler.go          # Lógica para buscar arquivos em /tmp/dataset
-│   ├── discovery.go             # Descoberta de peers no modo P2P
-│   └── main.go                  # Ponto de entrada para execução do servidor
-│
-├── p2p/
-│   ├── peer.go                  # Lógica P2P para comunicação entre peers
-│   ├── discovery.go             # Módulo de descoberta P2P (DHT ou multicast)
-│   └── connection.go            # Gerenciamento de conexões P2P via sockets ou gRPC
-│
-├── proto/                       # Definição do Protobuf para gRPC (se necessário)
-│   ├── file_service.proto       # Definição do serviço gRPC para busca de arquivos
-│   └── peer_service.proto       # Definição do serviço gRPC para descoberta de peers
-│
-├── scripts/
-│   ├── start_client.sh          # Script para iniciar o cliente
-│   └── start_server.sh          # Script para iniciar o servidor
-│
-├── /tmp/dataset/                # Diretório onde os arquivos estão armazenados
-│   └── ...                      # Arquivos do dataset buscados pelo cliente
-│
+├── cmd/
+│   ├── main.go                  # Inicio do sistema, onde está a interface, e start para os servicos necessarios para funcionamento do peer.
+├── constants/
+│   ├── constants.go             # Principais informacoes para funcionanemnto do sistema
+├── greeter/
+│   ├── ...                      # Arquivos gerados pelo proto
+├── netUtils/
+│   ├── netUtils.go              # Pacote que possui funcionalidades uteis referentes configuracoes de rede
 ├── go.mod                       # Módulo Go para gerenciamento de dependências
 ├── go.sum                       # Gerenciamento de dependências Go
 └── README.md                    # Documentação do projeto
 ```
 
 # Requisitos Funcionais do Projeto
-
-- [ ] **Descoberta de Peers ou Servidores (Local Peer Discovery)**
-  - O sistema deve ser capaz de descobrir automaticamente os peers ou servidores disponíveis na rede local.
-  - Deve utilizar o Local Peer Discovery via multicast ou broadcast para encontrar outros peers.
-
-- [ ] **Conexão a Múltiplos Peers**
-  - O cliente deve ser capaz de se conectar a múltiplos peers simultaneamente para realizar operações de download ou troca de arquivos.
-
-- [ ] **Transferência de Arquivos entre Peers**
-  - O sistema deve permitir a solicitação e transferência de arquivos entre peers.
-  - Os arquivos compartilhados estarão no diretório `/tmp/dataset`.
-
-- [ ] **Gerenciamento de Peers**
-  - O sistema deve gerenciar a adição de novos peers e a remoção de peers que se desconectaram da rede.
-
-- [ ] **Balanceamento de Carga entre Peers**
-  - O sistema deve distribuir as solicitações de arquivos entre múltiplos peers para evitar sobrecarga de um único peer.
-
-- [ ] **Log de Operações**
-  - O sistema deve registrar operações importantes como descoberta de peers, conexões, transferências de arquivos e falhas.
-
-- [ ] **Persistência Temporária de Arquivos**
-  - Os arquivos devem ser armazenados temporariamente no diretório `/tmp/dataset` e o sistema deve refletir alterações de disponibilidade de arquivos.
+- Registro no Etcd: Cada peer registra seu IP no Etcd ao iniciar.
+- Renovação de Registro: Peers renovam seu registro periodicamente para indicar que ainda estão ativos.
+- Listagem de Peers: Os peers podem obter uma lista dos IPs de outros peers registrados no Etcd.
+- Cache de Listagem: A listagem de IPs dos peers e dos arquivos disponíveis é mantida em cache para melhorar a performance.
+- Download de Arquivos: Peers podem requisitar arquivos uns dos outros, utilizando o hash SHA1 para identificar e baixar os arquivos desejados.
+- Verificação de Integridade: Cada arquivo compartilhado é verificado com um hash SHA1 para garantir a integridade.

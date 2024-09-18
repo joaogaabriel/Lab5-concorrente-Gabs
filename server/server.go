@@ -32,12 +32,12 @@ func (s *FileServiceServer) Download(req *pb.FileDownloadRequest, stream pb.File
 	fileFind, exists := s.filesCache.GetFile(req.GetSha1Hash())
 
 	if !exists {
-		return fmt.Errorf("File not found")
+		return fmt.Errorf("file not found")
 	}
 
 	fileOpen, err := os.Open(fileFind.Path)
 	if err != nil {
-		return fmt.Errorf("erro ao abrir o arquivo: %v", err)
+		return fmt.Errorf("error open file: %v", err)
 	}
 	defer fileOpen.Close()
 
@@ -48,14 +48,14 @@ func (s *FileServiceServer) Download(req *pb.FileDownloadRequest, stream pb.File
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("erro ao ler o arquivo: %v", err)
+			return fmt.Errorf("error read file: %v", err)
 		}
 
 		err = stream.Send(&pb.FileDownloadResponse{
 			Chunk: buffer[:n],
 		})
 		if err != nil {
-			return fmt.Errorf("erro ao enviar o pedaço: %v", err)
+			return fmt.Errorf("error sending part of the file: %v", err)
 		}
 	}
 
