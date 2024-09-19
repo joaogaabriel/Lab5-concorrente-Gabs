@@ -2,11 +2,13 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"github.com/goPirateBay/client"
 	"github.com/goPirateBay/constants"
 	"github.com/goPirateBay/fileUtils"
 	"github.com/goPirateBay/server"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
@@ -18,9 +20,20 @@ import (
 
 func main() {
 
+	logsActive := flag.String("logs", "nil", "Ativar logs")
+	createFilesToTest := flag.String("create-files-to-test", "nil", "Criar arquivos temporarios para teste")
+
+	flag.Parse()
+
+	if *logsActive != "true" {
+		log.SetOutput(ioutil.Discard)
+	}
+
 	directory := constants.InitDirFiles
-	if _, err := os.Stat(directory); os.IsNotExist(err) {
-		createFilesTest(directory)
+	if *createFilesToTest != "true" {
+		if _, err := os.Stat(directory); os.IsNotExist(err) {
+			createFilesTest(directory)
+		}
 	}
 
 	cacheServers := &client.ServerCache{}
@@ -30,15 +43,7 @@ func main() {
 		log.Fatal("fileCache is not initialized")
 	}
 
-	cacheFiles.StartPeriodicCacheUpdate(constants.InitDirFiles, 2*time.Minute)
-
-	//go server.StartServer(cacheFiles)
-	go server.StartServerr(cacheFiles)
-	cacheFiles.GetAllFiles()
-	time.Sleep(time.Second / 2)
-	for _, file := range cacheFiles.GetAllFiles() {
-		fmt.Printf("File: %s, Size: %d bytes HASH: %s\n", file.Name, file.Size, file.SHA1Hash)
-	}
+	go server.StartServer(cacheFiles)
 
 	stopChan := make(chan os.Signal, 1)
 	signal.Notify(stopChan, os.Interrupt, syscall.SIGTERM)
@@ -58,23 +63,19 @@ func main() {
 			validateMachines(hash, cacheServers)
 
 		} else if option == "2" {
+			showListFiles(cacheFiles)
+		} else if option == "3" {
 			fmt.Print("Digite o nome do arquivo para download: ")
 			fileName, _ := reader.ReadString('\n')
-			fileName = strings.TrimSpace(fileName)
 
-			fmt.Print("Digite a máquina (IP) para realizar o download: ")
-			machine, _ := reader.ReadString('\n')
-			machine = strings.TrimSpace(machine)
+			fmt.Print("Digite o hash do arquivo para download: ")
+			hash, _ := reader.ReadString('\n')
 
-			downloadFile(machine, fileName)
+			downloadFile(cacheServers, strings.TrimSpace(hash), strings.TrimSpace(fileName))
 
-		} else if option == "3" {
+		} else if option == "4" {
 			fmt.Println("Encerrando o servidor gRPC e saindo...")
-
-			//grpcServer.GracefulStop()
-			fmt.Println("Servidor gRPC encerrado.")
 			break
-
 		} else {
 			fmt.Println("Opção inválida. Tente novamente.")
 		}
@@ -82,31 +83,42 @@ func main() {
 }
 
 func showMenu() {
-	fmt.Println("===== Menu =====")
+	fmt.Println("===================== MENU =====================")
 	fmt.Println("1. Validar quais máquinas possuem o arquivo")
-	fmt.Println("2. Realizar download do arquivo")
-	fmt.Println("3. Encerrar")
-	fmt.Println("================")
+	fmt.Println("2. Listar arquivos locais disponiveis para download")
+	fmt.Println("3. Realizar download do arquivo")
+	fmt.Println("4. Encerrar")
+	fmt.Println("================================================")
+}
+
+func showListFiles(cache *fileUtils.FileCache) {
+	for _, file := range cache.GetAllFiles() {
+		fmt.Printf("File: %s, Size: %d bytes HASH: %s\n", file.Name, file.Size, file.SHA1Hash)
+	}
 }
 
 func validateMachines(hash string, serverChave *client.ServerCache) {
-	log.Print("searches servers to file hash: %s", hash)
+	log.Printf("searches servers to file hash: %s", hash)
 
 	listServers := client.ListServerCotainsFile(serverChave, hash)
 	if len(listServers) > 0 {
+		fmt.Println("SERVIDORES ENCONTRADOS PARA ARQUIVO PESQUISADO: ")
 		for _, server := range listServers {
 			fmt.Println(server)
 		}
 	} else {
-		fmt.Println("No servers found to contains file hash")
+		fmt.Printf("Nenhum servidor encontrado contém hash de arquivo: %s", hash)
 	}
 }
 
-func downloadFile(machine string, fileName string) {
-	fmt.Printf("Realizando download do arquivo '%s' da máquina '%s'...\n", fileName, machine)
-	// Simulação de download do arquivo
-	time.Sleep(2 * time.Second)
-	fmt.Println("Download concluído!")
+func downloadFile(sc *client.ServerCache, hash string, fileName string) {
+	err := client.DownloadFile(sc, fileName, hash)
+	if err != nil {
+		fmt.Printf("Houve um erro ao realizar download do arquivo %s", err)
+	} else {
+		fmt.Println("Download realizado com sucesso!!")
+	}
+
 }
 
 func createFilesTest(dirPath string) {

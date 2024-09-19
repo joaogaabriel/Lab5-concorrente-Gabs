@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
+	"github.com/goPirateBay/constants"
 	"io"
 	"io/ioutil"
 	"log"
@@ -41,35 +42,22 @@ func NewFileCache(ttl time.Duration) *FileCache {
 	}
 }
 
-func (fc *FileCache) StartPeriodicCacheUpdate(dir string, interval time.Duration) {
-	go func() {
-		for {
+func (fc *FileCache) GetAllFiles() []FileInfo {
 
-			log.Printf("Update caching...")
-			err := fc.LoadFiles(dir)
-			if err != nil {
-				log.Fatalf("Falied to update chache: %v", err)
-			}
-			time.Sleep(interval)
-		}
-	}()
-}
-
-func (c *FileCache) GetAllFiles() []FileInfo {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	var files []FileInfo
-	for _, file := range c.cache {
-		if time.Now().Before(c.expiration[file.SHA1Hash]) {
-			files = append(files, file)
-		}
+	err := fc.LoadFiles(constants.InitDirFiles)
+	if err != nil {
+		return nil
 	}
 
+	var files []FileInfo
+	for _, file := range fc.cache {
+		files = append(files, file)
+	}
 	return files
 }
 
 func (fc *FileCache) LoadFiles(dir string) error {
+
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return err
@@ -103,18 +91,23 @@ func (fc *FileCache) LoadFiles(dir string) error {
 }
 
 func (fc *FileCache) GetFile(sha1_hash string) (FileInfo, bool) {
+
 	fc.mu.RLock()
-	defer fc.mu.RUnlock()
 	file, found := fc.cache[sha1_hash]
-	if !found {
-		return FileInfo{}, false
-	}
+	expiration, exists := fc.expiration[sha1_hash]
+	fc.mu.RUnlock()
 
-	if time.Now().After(fc.expiration[sha1_hash]) {
+	if !found || (exists && time.Now().After(expiration)) {
 
-		delete(fc.cache, sha1_hash)
-		delete(fc.expiration, sha1_hash)
-		return FileInfo{}, false
+		if err := fc.LoadFiles(constants.InitDirFiles); err != nil {
+			log.Printf("Error to update cache: %v", err)
+			return FileInfo{}, false
+		}
+
+		file, found = fc.cache[sha1_hash]
+		if !found {
+			return FileInfo{}, false
+		}
 	}
 
 	return file, true
@@ -151,7 +144,12 @@ func calculateSHA1(filePath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+
+		}
+	}(file)
 
 	hash := sha1.New()
 	if _, err := io.Copy(hash, file); err != nil {

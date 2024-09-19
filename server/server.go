@@ -17,17 +17,14 @@ import (
 	pb "github.com/goPirateBay/greeter"
 )
 
-type server struct {
-	pb.UnimplementedGreeterServer
-	filesCache *fileUtils.FileCache
-}
-
 type FileServiceServer struct {
-	pb.UnimplementedFileServiceServer
+	pb.FileServiceServer
 	filesCache *fileUtils.FileCache
 }
 
 func (s *FileServiceServer) Download(req *pb.FileDownloadRequest, stream pb.FileService_DownloadServer) error {
+
+	log.Println("Starting upload file")
 
 	fileFind, exists := s.filesCache.GetFile(req.GetSha1Hash())
 
@@ -35,12 +32,18 @@ func (s *FileServiceServer) Download(req *pb.FileDownloadRequest, stream pb.File
 		return fmt.Errorf("file not found")
 	}
 
+	log.Println("opening file to send")
 	fileOpen, err := os.Open(fileFind.Path)
 	if err != nil {
 		return fmt.Errorf("error open file: %v", err)
 	}
-	defer fileOpen.Close()
+	defer func(fileOpen *os.File) {
+		err := fileOpen.Close()
+		if err != nil {
 
+		}
+	}(fileOpen)
+	log.Println("create channel buffer file to send")
 	buffer := make([]byte, constants.BufferSize)
 	for {
 		n, err := fileOpen.Read(buffer)
@@ -62,11 +65,12 @@ func (s *FileServiceServer) Download(req *pb.FileDownloadRequest, stream pb.File
 	return nil
 }
 
-func (s *server) CheckExistsFile(ctx context.Context, in *pb.FileExistsRequest) (*pb.FileExistsResponse, error) {
+func (s *FileServiceServer) CheckExistsFile(_ context.Context, in *pb.FileExistsRequest) (*pb.FileExistsResponse, error) {
 
 	log.Printf("Checking if fileUtils with SHA-1 hash %s exists", in.Sha1Hash)
 
 	_, exists := s.filesCache.GetFile(in.Sha1Hash)
+	log.Println("Checking finish")
 
 	if exists {
 		return &pb.FileExistsResponse{Exists: true}, nil
@@ -75,7 +79,7 @@ func (s *server) CheckExistsFile(ctx context.Context, in *pb.FileExistsRequest) 
 	return &pb.FileExistsResponse{Exists: false}, nil
 }
 
-func StartServerr(filesCache *fileUtils.FileCache) {
+func StartServer(filesCache *fileUtils.FileCache) {
 
 	go registerService()
 
@@ -86,7 +90,6 @@ func StartServerr(filesCache *fileUtils.FileCache) {
 
 	s := grpc.NewServer()
 
-	pb.RegisterGreeterServer(s, &server{filesCache: filesCache})
 	pb.RegisterFileServiceServer(s, &FileServiceServer{filesCache: filesCache})
 
 	log.Println("Server is running on port 50051...")
@@ -97,15 +100,21 @@ func StartServerr(filesCache *fileUtils.FileCache) {
 
 func registerService() {
 	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{constants.IP_ETCD},
+		Endpoints:   []string{constants.IpEtcd},
 		DialTimeout: 5 * time.Second,
 	})
 	if err != nil {
 		log.Fatalf("Failed to serve Etcd: %v", err)
 	}
-	defer cli.Close()
 
-	leaseResp, err := cli.Grant(context.Background(), constants.TimeCheckServer) // Tempo de expiração do lease
+	defer func(cli *clientv3.Client) {
+		err := cli.Close()
+		if err != nil {
+
+		}
+	}(cli)
+
+	leaseResp, err := cli.Grant(context.Background(), constants.TimeCheckServer)
 	if err != nil {
 		log.Fatalf("Failed to create lease: %v", err)
 	}

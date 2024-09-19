@@ -2,14 +2,11 @@ syntax = "proto3";
 
 package greeter;
 
+
 option go_package = "./greeter";
 
-// Definição do serviço
-service Greeter {
-  rpc CheckExistsFile(FileExistsRequest) returns (FileExistsResponse);
-}
-
 service FileService {
+  rpc CheckExistsFile(FileExistsRequest) returns (FileExistsResponse);
   rpc Download(FileDownloadRequest) returns (stream FileDownloadResponse);
 }
 
